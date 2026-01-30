@@ -136,7 +136,7 @@
 
         <div class="input-group">
             <label>𝐓𝐞𝐦𝐩𝐨 𝐝𝐞 𝐛𝐚𝐧𝐢𝐦𝐞𝐧𝐭𝐨:</label>
-            <input type="text" id="tempo" placeholder="Número = Horas | Vazio = Permanente">
+            <input type="text" id="tempo" placeholder="Ex: 5+48, 20 ou deixe vazio">
         </div>
 
         <button class="btn-save" onclick="salvarMolde()">Salvar no Histórico</button>
@@ -181,19 +181,32 @@
         function salvarMolde() {
             const id = document.getElementById('id-player').value;
             const motivo = document.getElementById('motivo').value;
-            let tempo = document.getElementById('tempo').value.trim();
+            let tempoInput = document.getElementById('tempo').value.trim();
             const editIndex = document.getElementById('edit-index').value;
 
             if(!id || !motivo) return alert("Preencha o ID e o Motivo!");
 
-            // Lógica de tempo automática
-            if (tempo === "") {
-                tempo = "Permanente";
-            } else if (!isNaN(tempo)) {
-                tempo = tempo + " Horas";
+            let tempoFinal = "";
+
+            // Lógica de cálculo e tempo
+            if (tempoInput === "") {
+                tempoFinal = "Permanente";
+            } else if (tempoInput.includes('+')) {
+                // Tenta somar os valores
+                const partes = tempoInput.split('+');
+                let soma = 0;
+                partes.forEach(p => {
+                    const num = parseFloat(p.trim());
+                    if (!isNaN(num)) soma += num;
+                });
+                tempoFinal = soma + " Horas";
+            } else if (!isNaN(tempoInput)) {
+                tempoFinal = tempoInput + " Horas";
+            } else {
+                tempoFinal = tempoInput; // Caso digite texto manual (ex: 3 dias)
             }
 
-            const novoMolde = { id, motivo, tempo };
+            const novoMolde = { id, motivo, tempo: tempoFinal };
 
             if(editIndex == "-1") {
                 moldes.push(novoMolde);
@@ -223,7 +236,6 @@
             document.getElementById('id-player').value = molde.id;
             document.getElementById('motivo').value = molde.motivo;
             
-            // Remove " Horas" ou "Permanente" para facilitar a reedição se necessário
             let tempoLimpo = molde.tempo.replace(" Horas", "");
             if(tempoLimpo === "Permanente") tempoLimpo = "";
             
