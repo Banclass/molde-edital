@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciador de Banimentos</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #cbd5e1;
+        }
+
+        body.dark-mode {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f1f5f9;
+            --border: #334155;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .container {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 2rem;
+        }
+
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg);
+            color: var(--text);
+            box-sizing: border-box;
+        }
+
+        button {
+            cursor: pointer;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 15px;
+            font-weight: 600;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+
+        button:active { transform: scale(0.95); }
+
+        .btn-save { background-color: var(--primary); color: white; width: 100%; margin-bottom: 10px; }
+        .btn-clear-all { background-color: #64748b; color: white; width: 100%; }
+        
+        .btn-copy { background-color: var(--success); color: white; }
+        .btn-edit { background-color: #e2e8f0; color: #1e293b; }
+        .btn-delete { background-color: var(--danger); color: white; }
+
+        .theme-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            font-size: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .history-container { width: 100%; max-width: 700px; }
+
+        .card {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 5px solid var(--primary);
+            margin-bottom: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .card-content { flex-grow: 1; }
+        .card-content p { margin: 5px 0; line-height: 1.4; white-space: pre-wrap; }
+        .actions { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+
+        @media (max-width: 480px) {
+            .card { flex-direction: column; align-items: flex-start; }
+            .actions { width: 100%; justify-content: flex-start; }
+        }
+    </style>
+</head>
+<body>
+
+    <button class="theme-toggle" onclick="toggleTheme()" title="Trocar Tema">🌓</button>
+
+    <div class="container">
+        <h2>🔨 Registrar Banimento</h2>
+        <input type="hidden" id="edit-index" value="-1">
+        
+        <div class="input-group">
+            <label>𝐈𝐃:</label>
+            <input type="text" id="id-player" placeholder="Ex: 12345">
+        </div>
+
+        <div class="input-group">
+            <label>𝐌𝐨𝐭𝐢𝐯𝐨 𝐝𝐨 𝐛𝐚𝐧𝐢𝐦𝐞𝐧𝐭𝐨:</label>
+            <textarea id="motivo" rows="3" placeholder="Descreva o motivo..."></textarea>
+        </div>
+
+        <div class="input-group">
+            <label>𝐓𝐞𝐦𝐩𝐨 𝐝𝐞 𝐛𝐚𝐧𝐢𝐦𝐞𝐧𝐭𝐨:</label>
+            <input type="text" id="tempo" placeholder="Ex: 7 dias / Permanente">
+        </div>
+
+        <button class="btn-save" onclick="salvarMolde()">Salvar no Histórico</button>
+        <button class="btn-clear-all" onclick="excluirTudo()">Excluir Tudo</button>
+    </div>
+
+    <div class="history-container">
+        <h3>📋 Histórico de Moldes</h3>
+        <div id="lista-historico"></div>
+    </div>
+
+    <script>
+        let moldes = JSON.parse(localStorage.getItem('moldes_ban')) || [];
+
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+        }
+
+        function renderizarHistorico() {
+            const lista = document.getElementById('lista-historico');
+            lista.innerHTML = '';
+
+            moldes.forEach((molde, index) => {
+                const div = document.createElement('div');
+                div.className = 'card';
+                div.innerHTML = `
+                    <div class="card-content" id="texto-${index}">
+<p>𝐈𝐃: ${molde.id}</p>
+<p>𝐌𝐨𝐭𝐢𝐯𝐨 𝐝𝐨 𝐛𝐚𝐧𝐢𝐦𝐞𝐧𝐭𝐨: ${molde.motivo}</p>
+<p>𝐓𝐞𝐦𝐩𝐨 𝐝𝐞 𝐛𝐚𝐧𝐢𝐦𝐞𝐧𝐭𝐨: ${molde.tempo}</p>
+                    </div>
+                    <div class="actions">
+                        <button class="btn-copy" onclick="copiarMolde(${index})">Copiar</button>
+                        <button class="btn-edit" onclick="editarMolde(${index})">Editar</button>
+                        <button class="btn-delete" onclick="excluirMolde(${index})">Excluir</button>
+                    </div>
+                `;
+                lista.appendChild(div);
+            });
+        }
+
+        function salvarMolde() {
+            const id = document.getElementById('id-player').value;
+            const motivo = document.getElementById('motivo').value;
+            const tempo = document.getElementById('tempo').value;
+            const editIndex = document.getElementById('edit-index').value;
+
+            if(!id || !motivo || !tempo) return alert("Preencha todos os campos!");
+
+            const novoMolde = { id, motivo, tempo };
+
+            if(editIndex == "-1") {
+                moldes.push(novoMolde);
+            } else {
+                moldes[editIndex] = novoMolde;
+                document.getElementById('edit-index').value = "-1";
+            }
+
+            localStorage.setItem('moldes_ban', JSON.stringify(moldes));
+            limparCampos();
+            renderizarHistorico();
+        }
+
+        function copiarMolde(index) {
+            const m = moldes[index];
+            const textoParaCopiar = `𝐈𝐃: ${m.id}\n𝐌𝐨𝐭𝐢𝐯𝐨 𝐝𝐨 𝐛𝐚𝐧𝐢𝐦𝐞𝐧𝐭𝐨: ${m.motivo}\n𝐓𝐞𝐦𝐩𝐨 𝐝𝐞 𝐛𝐚𝐧𝐢𝐦𝐞𝐧𝐭𝐨: ${m.tempo}`;
+            
+            navigator.clipboard.writeText(textoParaCopiar).then(() => {
+                const btn = document.querySelectorAll('.btn-copy')[index];
+                const originalText = btn.innerText;
+                btn.innerText = "Copiado! ✅";
+                btn.style.backgroundColor = "#15803d";
+                
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                    btn.style.backgroundColor = "var(--success)";
+                }, 1500);
+            });
+        }
+
+        function editarMolde(index) {
+            const molde = moldes[index];
+            document.getElementById('id-player').value = molde.id;
+            document.getElementById('motivo').value = molde.motivo;
+            document.getElementById('tempo').value = molde.tempo;
+            document.getElementById('edit-index').value = index;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function excluirMolde(index) {
+            if(confirm("Excluir este item?")) {
+                moldes.splice(index, 1);
+                localStorage.setItem('moldes_ban', JSON.stringify(moldes));
+                renderizarHistorico();
+            }
+        }
+
+        function excluirTudo() {
+            if(confirm("⚠️ ATENÇÃO: Você deseja excluir TODOS os moldes salvos?")) {
+                moldes = [];
+                localStorage.removeItem('moldes_ban');
+                renderizarHistorico();
+            }
+        }
+
+        function limparCampos() {
+            document.getElementById('id-player').value = '';
+            document.getElementById('motivo').value = '';
+            document.getElementById('tempo').value = '';
+        }
+
+        renderizarHistorico();
+    </script>
+</body>
+</html>
